@@ -128,9 +128,9 @@ function createQuickSkipSetting(index) {
   var enabled = isQuickSkipEnabled();
   return {
     compactLinkRenderer: {
-      title: { simpleText: 'Siri Remote Quick Skip' },
-      subtitle: { simpleText: 'Left/Right skip 10 seconds' },
-      icon: { iconType: 'FORWARD_10' },
+      title: { simpleText: 'Quick Skip' },
+      subtitle: { simpleText: 'Skip 10s with Left/Right (Siri Remote Gen 2+)' },
+      icon: { iconType: 'FAST_FORWARD' },
       secondaryIcon: { iconType: enabled ? 'CHECK_BOX' : 'CHECK_BOX_OUTLINE_BLANK' },
       serviceEndpoint: {
         commandExecutorCommand: {
@@ -149,7 +149,7 @@ function addQuickSkipSetting(command) {
   var items = command.openPopupAction.popup.overlaySectionRenderer.overlay.overlayTwoPanelRenderer.actionPanel.overlayPanelRenderer.content.overlayPanelItemListRenderer.items;
   if (!Array.isArray(items) || items.some(function (item) {
     return item && item.compactLinkRenderer && item.compactLinkRenderer.title &&
-      item.compactLinkRenderer.title.simpleText === 'Siri Remote Quick Skip';
+      item.compactLinkRenderer.title.simpleText === 'Quick Skip';
   })) return;
   items.push(createQuickSkipSetting(items.length));
 }
