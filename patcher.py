@@ -78,6 +78,54 @@ COBALT_HDR_PATCHES = [
     },
 ]
 
+# YouTube 4.54.01 Cobalt VP9 and tvOS renderer tuning. These changes keep the
+# existing decoder and renderer paths, but adjust queue sizing, preroll, and
+# late-frame handling for high-resolution playback.
+COBALT_PLAYBACK_PATCHES = [
+    {
+        "name": "cobalt_vpx_4k_sdr_frame_pool_gate",
+        "va": 0x101129830,
+        "expect": ("cbz", "w9, #0x101129858"),
+        "replacement": 0xD503201F,  # nop
+    },
+    {
+        "name": "cobalt_vpx_4k_preroll_8_frames",
+        "va": 0x101129844,
+        "expect": ("mov", "w13, #0x30"),
+        "replacement": 0x5280010D,  # mov w13, #8
+    },
+    {
+        "name": "cobalt_vpx_4k_sdr_loop_filter_opt_gate",
+        "va": 0x101129E60,
+        "expect": ("cbz", "w8, #0x101129e90"),
+        "replacement": 0xD503201F,  # nop
+    },
+    {
+        "name": "tvos_renderer_cap_frames_in_flight",
+        "va": 0x101144290,
+        "expect": ("add", "x20, x8, x20"),
+        "replacement": 0x8B140914,  # add x20, x8, x20, lsl #2
+    },
+    {
+        "name": "tvos_renderer_drop_late_frame_count",
+        "va": 0x101144C90,
+        "expect": ("ldr", "x8, [x19, #0x1e0]"),
+        "replacement": 0x110006F7,  # add w23, w23, #1
+    },
+    {
+        "name": "tvos_renderer_drop_late_frame_counter",
+        "va": 0x101144C94,
+        "expect": ("add", "x8, x8, #1"),
+        "replacement": 0xD503201F,  # nop
+    },
+    {
+        "name": "tvos_renderer_drop_late_frame_enqueue",
+        "va": 0x101144C98,
+        "expect": ("str", "x8, [x19, #0x1e0]"),
+        "replacement": 0x14000005,  # b 0x101144cac
+    },
+]
+
 MD = Cs(CS_ARCH_ARM64, CS_MODE_LITTLE_ENDIAN)
 MD.detail = False
 
@@ -500,7 +548,7 @@ def patch_binary(data, enable_printf_logs=False):
             }
         )
 
-    for patch in COBALT_HDR_PATCHES:
+    for patch in COBALT_HDR_PATCHES + COBALT_PLAYBACK_PATCHES:
         patch_off = va_to_off(info, patch["va"])
         insn = disasm_one(data[patch_off:patch_off + 4], patch["va"])
         if (insn.mnemonic, insn.op_str) != patch["expect"]:
