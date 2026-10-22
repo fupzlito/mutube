@@ -97,11 +97,11 @@
     var items = command.openPopupAction.popup.overlaySectionRenderer.overlay.overlayTwoPanelRenderer.actionPanel.overlayPanelRenderer.content.overlayPanelItemListRenderer.items;
     if (!Array.isArray(items) || items.some(function (item) {
       return item && item.compactLinkRenderer && item.compactLinkRenderer.title &&
-        item.compactLinkRenderer.title.simpleText === 'Enable HDR Playback';
+        item.compactLinkRenderer.title.simpleText === 'Allow HDR';
     })) return;
     items.push(createSetting(
-      'Enable HDR Playback',
-      'Allow HDR video formats when available',
+      'Allow HDR',
+      'Disable if HDR playback stutters',
       'VIDEO_QUALITY',
       'enableHdr',
       items.length
