@@ -126,6 +126,41 @@ COBALT_PLAYBACK_PATCHES = [
     },
 ]
 
+# Raise decoder and VP9 worker thread priorities. This requests higher
+# scheduling priority; it does not set CPU affinity or guarantee P-core pinning.
+COBALT_THREAD_PRIORITY_PATCHES = [
+    {
+        "name": "cobalt_vpx_decoder_thread_priority",
+        "va": 0x101129488,
+        "expect": ("mov", "w3, #0x2"),
+        "replacement": 0x52800063,  # mov w3, #3
+    },
+    {
+        "name": "cobalt_vpx_output_thread_priority",
+        "va": 0x101129EA8,
+        "expect": ("mov", "w3, #0x2"),
+        "replacement": 0x52800063,  # mov w3, #3
+    },
+    {
+        "name": "cobalt_vpx_worker_thread_priority_arg",
+        "va": 0x101302AC4,
+        "expect": ("ldr", "x0, [x0]"),
+        "replacement": 0x52800060,  # mov w0, #3
+    },
+    {
+        "name": "cobalt_vpx_worker_thread_set_priority",
+        "va": 0x101302AC8,
+        "expect": ("bl", "#0x101c3d264"),
+        "replacement": 0x97F94A29,  # bl SbThreadSetPriority
+    },
+    {
+        "name": "cobalt_vpx_worker_thread_resume_loop",
+        "va": 0x101302ACC,
+        "expect": ("ldr", "w8, [x19, #0x8]"),
+        "replacement": 0x1400000A,  # b 0x101302af4
+    },
+]
+
 MD = Cs(CS_ARCH_ARM64, CS_MODE_LITTLE_ENDIAN)
 MD.detail = False
 
@@ -548,7 +583,7 @@ def patch_binary(data, enable_printf_logs=False):
             }
         )
 
-    for patch in COBALT_HDR_PATCHES + COBALT_PLAYBACK_PATCHES:
+    for patch in COBALT_HDR_PATCHES + COBALT_PLAYBACK_PATCHES + COBALT_THREAD_PRIORITY_PATCHES:
         patch_off = va_to_off(info, patch["va"])
         insn = disasm_one(data[patch_off:patch_off + 4], patch["va"])
         if (insn.mnemonic, insn.op_str) != patch["expect"]:
