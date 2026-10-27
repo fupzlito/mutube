@@ -66,13 +66,57 @@ window.MediaSource.isTypeSupported = function(mimeType) {
 };
 
 var pressedQuickSkipKeys = {};
+var quickSkipControlSelector = 'ytlr-player-actions-container, ytlr-progress-bar';
 
-function isHiddenFromQuickSkip(element) {
-  for (; element && element !== document; element = element.parentNode) {
-    var style = window.getComputedStyle(element);
-    if (element.getAttribute('aria-hidden') === 'true' ||
-        (element.classList && element.classList.contains('zylon-hidden')) ||
-        style.display === 'none' || style.visibility === 'hidden') return true;
+function quickSkipComposedParent(el) {
+  var p = el && el.parentNode;
+  return p && p.nodeType === 11 && p.host ? p.host : p;
+}
+
+function isVisibleFromQuickSkip(el) {
+  if (!el || !el.getClientRects().length) return false;
+  for (var c = el; c && c !== document; c = quickSkipComposedParent(c)) {
+    if (c.nodeType !== 1) continue;
+    var s = window.getComputedStyle(c), op = parseFloat(s.opacity);
+    if (c.getAttribute('aria-hidden') === 'true' ||
+        (c.classList && c.classList.contains('zylon-hidden')) ||
+        s.display === 'none' || s.visibility === 'hidden' || (isFinite(op) && op <= 0)) return false;
+  }
+  return true;
+}
+
+function hasVisibleQuickSkipNode(root, sel) {
+  var list = root.querySelectorAll(sel);
+  for (var i = 0; i < list.length; i++) if (isVisibleFromQuickSkip(list[i])) return true;
+  return false;
+}
+
+function isQuickSkipBlockedByUi(e) {
+  var paths = e.composedPath ? [e.composedPath()] : [];
+  [document.activeElement, e.target].forEach(function (el) {
+    var path = [];
+    for (; el && el !== document; el = quickSkipComposedParent(el)) if (el.nodeType === 1) path.push(el);
+    paths.push(path);
+  });
+  var relSel = '.ytlr-tile-renderer--focused, ytlr-player-related-videos-container, ytlr-player-related-videos-renderer';
+  var browseSel = 'ytlr-button, ytlr-squeezeback-player, zylon-provider-8, ytlr-tile-renderer, ytlr-guide-item, ytlr-pivot-bar-item, ' + relSel;
+  var dlgSel = '[role="dialog"], [aria-modal="true"], ytlr-popup-container, ytlr-dialog-renderer';
+  var paneSel = '.overlay-panel, ' + dlgSel;
+  var inCtrls = false, inBrowse = false, inPane = false;
+  for (var p = 0; p < paths.length; p++) {
+    for (var i = 0; i < paths[p].length; i++) {
+      var n = paths[p][i];
+      if (!n || n.nodeType !== 1 || !n.matches || !isVisibleFromQuickSkip(n)) continue;
+      if (n.matches(quickSkipControlSelector)) inCtrls = true;
+      if (n.matches(browseSel)) inBrowse = true;
+      if (n.matches(paneSel)) inPane = true;
+    }
+  }
+  if (inBrowse || (inPane && !inCtrls) || hasVisibleQuickSkipNode(document, dlgSel + ', ' + relSel)) return true;
+  var panels = document.querySelectorAll('.overlay-panel');
+  for (var j = 0; j < panels.length; j++) {
+    if (isVisibleFromQuickSkip(panels[j]) &&
+        hasVisibleQuickSkipNode(panels[j], 'button, [role="button"], [tabindex], ytlr-overlay-panel-item-renderer')) return true;
   }
   return false;
 }
@@ -93,22 +137,12 @@ function handleQuickSkipKey(event) {
   }
 
   var video = document.querySelector('video');
-  if (!video || video.paused || video.ended) return;
+  if (!video || video.paused || video.ended || isQuickSkipBlockedByUi(event)) return;
 
-  var target = document.activeElement || event.target;
-  if (target && target.closest) {
-    var tile = target.closest('ytlr-tile-renderer, ytlr-guide-item, ytlr-pivot-bar-item');
-    if (tile && !isHiddenFromQuickSkip(tile)) return;
-  }
-
-  var controls = ['ytlr-player-actions-container', 'ytlr-progress-bar'];
+  var controls = quickSkipControlSelector.split(', ');
   for (var i = 0; i < controls.length; i++) {
     var control = document.querySelector(controls[i]);
-    if (control && !isHiddenFromQuickSkip(control)) {
-      var style = window.getComputedStyle(control);
-      if (style.visibility !== 'hidden' && parseFloat(style.opacity) > 0 &&
-          control.getClientRects().length > 0) return;
-    }
+    if (control && isVisibleFromQuickSkip(control)) return;
   }
 
   pressedQuickSkipKeys[key] = true;
