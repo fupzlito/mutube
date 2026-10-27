@@ -99,7 +99,7 @@ function isQuickSkipBlockedByUi(e) {
     paths.push(path);
   });
   var relSel = '.ytlr-tile-renderer--focused, ytlr-player-related-videos-container, ytlr-player-related-videos-renderer';
-  var browseSel = 'ytlr-button, ytlr-squeezeback-player, zylon-provider-8, ytlr-tile-renderer, ytlr-guide-item, ytlr-pivot-bar-item, ' + relSel;
+  var browseSel = 'ytlr-button, ytlr-squeezeback-player, ytlr-tile-renderer, ytlr-guide-item, ytlr-pivot-bar-item, ' + relSel;
   var dlgSel = '[role="dialog"], [aria-modal="true"], ytlr-popup-container, ytlr-dialog-renderer';
   var paneSel = '.overlay-panel, ' + dlgSel;
   var inCtrls = false, inBrowse = false, inPane = false;
