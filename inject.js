@@ -163,8 +163,8 @@ function createQuickSkipSetting(index) {
   return {
     compactLinkRenderer: {
       title: { simpleText: 'Quick Skip' },
-      subtitle: { simpleText: 'Skip 10s with Left/Right (Siri Remote Gen 2+)' },
-      icon: { iconType: 'FAST_FORWARD' },
+      subtitle: { simpleText: 'Skip 10s with left/right button' },
+      icon: { iconType: 'SKIP_NEXT' },
       secondaryIcon: { iconType: enabled ? 'CHECK_BOX' : 'CHECK_BOX_OUTLINE_BLANK' },
       serviceEndpoint: {
         commandExecutorCommand: {
