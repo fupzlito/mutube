@@ -66,6 +66,7 @@ window.MediaSource.isTypeSupported = function(mimeType) {
 };
 
 var pressedQuickSkipKeys = {};
+var lastQuickSkipTime = 0;
 var quickSkipControlSelector = 'ytlr-player-actions-container, ytlr-progress-bar';
 
 function quickSkipComposedParent(el) {
@@ -121,17 +122,40 @@ function isQuickSkipBlockedByUi(e) {
   return false;
 }
 
+function sendQuickSkipPointer(target, type, x) {
+  try {
+    target.dispatchEvent(new PointerEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      clientX: x,
+      clientY: 0,
+      screenX: x,
+      screenY: 0,
+      pointerId: 1,
+      pointerType: 'touchpad',
+      pressure: type === 'pointerup' ? 0 : 0.5,
+      isPrimary: true
+    }));
+  } catch (e) {}
+}
+
 function handleQuickSkipKey(event) {
   if (!isQuickSkipEnabled()) return;
   var key = event.keyCode || event.which;
   if (key !== 37 && key !== 39) return;
   if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
 
+  var dispatchTarget = event.target && event.target.dispatchEvent ? event.target : document;
+  var target = (document.contains && !document.contains(dispatchTarget)) ? document : dispatchTarget;
+
   if (event.type === 'keyup') {
     if (pressedQuickSkipKeys[key]) {
       event.preventDefault();
       event.stopImmediatePropagation();
       delete pressedQuickSkipKeys[key];
+      sendQuickSkipPointer(target, 'pointerup', 0);
+      sendQuickSkipPointer(target, 'pointermove', 0);
     }
     return;
   }
@@ -145,14 +169,40 @@ function handleQuickSkipKey(event) {
     if (control && isVisibleFromQuickSkip(control)) return;
   }
 
-  pressedQuickSkipKeys[key] = true;
+  var now = Date.now();
+  var state = pressedQuickSkipKeys[key];
+  if (state || event.repeat) {
+    if (!state) state = pressedQuickSkipKeys[key] = { start: now, last: now };
+    if (now - state.start < 400 || now - state.last < 300) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    state.last = now;
+  } else {
+    if (now - lastQuickSkipTime < 200) {
+      pressedQuickSkipKeys[key] = { start: now, last: now };
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    pressedQuickSkipKeys[key] = { start: now, last: now };
+  }
+
+  lastQuickSkipTime = now;
   event.preventDefault();
   event.stopImmediatePropagation();
 
-  var dispatchTarget = event.target && event.target.dispatchEvent ? event.target : document;
+  var x = (key === 37) ? -0.85 : 0.85;
+  sendQuickSkipPointer(target, 'pointerdown', x);
+  sendQuickSkipPointer(target, 'pointermove', x);
+
   var init = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true };
-  dispatchTarget.dispatchEvent(new KeyboardEvent('keydown', init));
-  dispatchTarget.dispatchEvent(new KeyboardEvent('keyup', init));
+  target.dispatchEvent(new KeyboardEvent('keydown', init));
+  target.dispatchEvent(new KeyboardEvent('keyup', init));
+
+  sendQuickSkipPointer(target, 'pointerup', x);
+  sendQuickSkipPointer(target, 'pointermove', 0);
 }
 
 document.addEventListener('keydown', handleQuickSkipKey, true);
